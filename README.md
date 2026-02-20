@@ -1,5 +1,7 @@
 # AudioHub Pro
 
+Read this in: [English](README.md) | [Español](README.es.md)
+
 A Linux Mint Bluetooth audio router for TWS headphones and other audio devices. Connect your speakers/TWS to Linux and route audio with a simple UI.
 
 ## Why?
