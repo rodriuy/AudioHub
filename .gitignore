@@ -1,0 +1,7 @@
+venv/
+__pycache__/
+*.pyc
+audio_hub.log
+settings.json
+*.egg-info/
+dist/

@@ -1,0 +1,138 @@
+import customtkinter as ctk
+import subprocess
+import threading
+import time
+
+# Configuración estética
+ctk.set_appearance_mode("dark")
+ctk.set_default_color_theme("blue")
+
+class AudioHub(ctk.CTk):
+    def __init__(self):
+        super().__init__()
+
+        self.title("Ta! Audio Hub Pro")
+        self.geometry("450x600")
+        
+        # Datos de tus dispositivos
+        self.TWS_MAC = "41:42:8F:65:78:49"
+        self.IPHONE_MAC = "FC:66:CF:4D:9F:C0"
+        
+        self.is_syncing = False
+
+        # --- UI ELEMENTS ---
+        self.label_title = ctk.CTkLabel(self, text="AUDIO HUB", font=("Inter", 24, "bold"))
+        self.label_title.pack(pady=20)
+
+        # Status Cards
+        self.bt_status = self.create_status_card("Bluetooth", "Verificando...")
+        self.tws_status = self.create_status_card("Auriculares TWS", "Desconectado")
+        self.iphone_status = self.create_status_card("iPhone Audio", "Desconectado")
+
+        # Visualizador (Ondas)
+        self.canvas = ctk.CTkCanvas(self, height=100, bg="#1a1a1a", highlightthickness=0)
+        self.canvas.pack(fill="x", padx=40, pady=20)
+        self.draw_waves(False)
+
+        # Botón Principal
+        self.btn_sync = ctk.CTkButton(self, text="SINCRONIZAR TODO", height=50, 
+                                     command=self.start_sync_thread,
+                                     font=("Inter", 16, "bold"), fg_color="#1f538d")
+        self.btn_sync.pack(pady=20, padx=40, fill="x")
+
+        # Logger de consola pequeña
+        self.console = ctk.CTkTextbox(self, height=100, font=("Consolas", 12))
+        self.console.pack(pady=10, padx=20, fill="x")
+
+        # Iniciar monitoreo
+        self.update_status_loop()
+
+    def create_status_card(self, title, initial_state):
+        frame = ctk.CTkFrame(self)
+        frame.pack(pady=5, padx=40, fill="x")
+        lbl_title = ctk.CTkLabel(frame, text=title, font=("Inter", 12, "bold"))
+        lbl_title.pack(side="left", padx=15, pady=10)
+        lbl_state = ctk.CTkLabel(frame, text=initial_state, text_color="gray")
+        lbl_state.pack(side="right", padx=15, pady=10)
+        return lbl_state
+
+    def log(self, message):
+        self.console.insert("end", f"> {message}\n")
+        self.console.see("end")
+
+    def check_bt_power(self):
+        out = subprocess.getoutput("bluetoothctl show")
+        return "Powered: yes" in out
+
+    def check_connection(self, mac):
+        out = subprocess.getoutput(f"bluetoothctl info {mac}")
+        return "Connected: yes" in out
+
+    def update_status_loop(self):
+        # Verificar BT
+        if self.check_bt_power():
+            self.bt_status.configure(text="ENCENDIDO", text_color="#4BB543")
+        else:
+            self.bt_status.configure(text="APAGADO", text_color="#FF9494")
+        
+        # Verificar Conexiones
+        if self.check_connection(self.TWS_MAC):
+            self.tws_status.configure(text="CONECTADO", text_color="#4BB543")
+        else:
+            self.tws_status.configure(text="DESCONECTADO", text_color="gray")
+
+        if self.check_connection(self.IPHONE_MAC):
+            self.iphone_status.configure(text="CONECTADO", text_color="#4BB543")
+        else:
+            self.iphone_status.configure(text="DESCONECTADO", text_color="gray")
+        
+        self.after(3000, self.update_status_loop)
+
+    def draw_waves(self, active):
+        self.canvas.delete("wave")
+        color = "#1f538d" if active else "#333333"
+        import random
+        for i in range(10, 400, 15):
+            h = random.randint(10, 80) if active else 5
+            self.canvas.create_rectangle(i, 50-h/2, i+8, 50+h/2, fill=color, tags="wave")
+        if active:
+            self.after(100, lambda: self.draw_waves(True))
+
+    def start_sync_thread(self):
+        if not self.is_syncing:
+            threading.Thread(target=self.sync_process, daemon=True).start()
+
+    def sync_process(self):
+        self.is_syncing = True
+        self.btn_sync.configure(state="disabled", text="CONECTANDO...")
+        self.draw_waves(True)
+        
+        self.log("Iniciando secuencia de emparejamiento...")
+        
+        # 1. Asegurar BT prendido
+        subprocess.run(["bluetoothctl", "power", "on"])
+        
+        # 2. Conectar TWS
+        self.log("Conectando TWS...")
+        subprocess.run(["bluetoothctl", "connect", self.TWS_MAC])
+        
+        # 3. Conectar iPhone
+        self.log("Conectando iPhone...")
+        subprocess.run(["bluetoothctl", "connect", self.IPHONE_MAC])
+        
+        time.sleep(2)
+        
+        # 4. Configurar Loopback de Audio (PulseAudio/Pipewire)
+        self.log("Mezclando flujos de audio...")
+        subprocess.run(["pactl", "unload-module", "module-loopback"]) # Limpiar anteriores
+        subprocess.run(["pactl", "load-module", "module-loopback", "source_dont_move=true"])
+        
+        self.log("¡Todo listo! Disfruta.")
+        self.is_syncing = False
+        self.btn_sync.configure(state="normal", text="SINCRONIZADO")
+        self.after(5000, lambda: self.btn_sync.configure(text="SINCRONIZAR TODO"))
+        self.draw_waves(False)
+
+if __name__ == "__main__":
+    app = AudioHub()
+    app.mainloop()
