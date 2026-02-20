@@ -1,5 +1,7 @@
 # AudioHub Pro
 
+Read this in: [English](README.md) | [Español](README.es.md)
+
 Un enrutador de audio Bluetooth para Linux Mint para auriculares TWS y otros dispositivos de audio. Conecta tus parlantes/TWS a Linux y enruta el audio con una interfaz simple.
 
 ## ¿Por qué?
